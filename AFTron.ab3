@@ -1,0 +1,452 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "Work:AFTron"
+; ExeFile         = "AFTron.exe"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 100000
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 92
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8192
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 33
+; CursorColumn    = 31
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 100
+; Max GadgetList  = 100
+; Max Screen      = 5
+; Max Shape       = 200
+; Max Window      = 100
+; Max Bank        = 1
+; Max IntuiFont   = 10
+; Max MenuList    = 100
+; Max BlitzFont   = 1
+; Max GTList      = 100
+; Max Palette     = 4
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 100
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+ver$ = "$VER: AFTron 1.0 (21.03.2018) Amiga Future Blitz Tutorial Series"
+WBStartup
+
+NEWTYPE .player
+  lives.b
+  direction.b
+  speed.w
+  prevspeed.w
+  x.w
+  y.w
+  prevx.w
+  prevy.w
+  prevprevx.w
+  prevprevy.w
+  pen.w
+  crash.w
+  animframe.q
+  viewx.w
+  viewy.w
+  bgx.q
+  bgy.q
+End NEWTYPE
+
+Dim players.player(1)
+players(0)\lives = 5
+players(1)\lives = 5
+USEPATH players(i)
+
+; Load in the sprite sheet
+BitMap 0, 240, 120, 3
+LoadBitMap 0, "Assets/SpriteSheet.iff"
+LoadPalette 0, "Assets/Palette"
+PalRGB 0, 0, 0, 0, 0 ; Set black Background
+
+; Driving sprites
+For i.w = 0 To 1 ; Players 0 and 1
+  For j.w = 0 To 6
+    GetaShape i * 28 + j, j * 9, i * 20, 9, 20 ; Up facing
+    MidHandle i * 28 + j
+
+    CopyShape i * 28 + j, i * 28 + j + 7 ; Right facing
+    Rotate i * 28 + j + 7, 0.25
+    MidHandle i * 28 + j + 7
+
+    CopyShape i * 28 + j, i * 28 + j + 14 ; Down facing
+    Rotate i * 28 + j + 14, 0.5
+    MidHandle i * 28 + j + 14
+
+    CopyShape i * 28 + j, i * 28 + j + 21 ; Left facing
+    Rotate i * 28 + j + 21, 0.75
+    MidHandle i * 28 + j + 21
+  Next j
+Next i
+
+
+; Crashing sprites
+For i.w = 0 To 1 ; Players 0 and 1
+  For j.w = 0 To 11
+    GetaShape i * 48 + j + 56, j * 18, i * 21 + 40, 17, 20 ; Up facing
+    MidHandle i * 48 + j + 56
+
+    CopyShape i * 48 + j + 56, i * 48 + j + 68 ; Right facing
+    Rotate i * 48 + j + 68, 0.25
+    MidHandle i * 48 + j + 68
+
+    CopyShape i * 48 + j + 56, i * 48 + j + 80 ; Down facing
+    Rotate i * 48 + j + 80, 0.5
+    MidHandle i * 48 + j + 80
+
+    CopyShape i * 48 + j + 56, i * 48 + j + 92 ; Left
+    Rotate i * 48 + j + 92, 0.75
+    MidHandle i * 48 + j + 92
+  Next j
+Next i
+
+; Load the upper background tile
+LoadShape 152, "Assets/Tile.iff"
+
+Free BitMap 0 ; We don't need it anymore, recycle for next set of graphics
+
+BitMap 0, 640, 512, 3
+BitMap 1, 640, 512, 3
+BitMap 2, 480, 384, 3
+LoadBitMap 2, "Assets/PCB.iff"
+
+; *** Routine for drawing both bitmaps in their original state
+Statement drawbitmaps{currentbitmap.w}
+  BLITZ
+  altbmap.b = 1 - currentbitmap
+  Use BitMap altbmap ; Reduces flicker during draw
+
+  For i.w = 0 To 4
+    For j.w = 0 To 3
+      Block 152, i * 128, j * 128
+    Next j
+  Next i
+
+  ; Draw a border around the field in pen 2
+  Box 1, 0, 639, 511, 2
+  Box 2, 1, 638, 510, 2
+  VWait
+  CopyBitMap altbmap, currentbitmap
+End Statement
+
+; *** Routine resets game's parameters
+Statement resetgame{}
+  SHARED players()
+  players(0)\x = 30
+  players(0)\direction = 1
+  players(0)\pen = 4
+  players(0)\prevspeed = 2
+  players(0)\viewx = 0
+  players(1)\x = 609
+  players(1)\direction = 3
+  players(1)\pen = 6
+  players(1)\prevspeed = 2
+  players(1)\viewx = 319
+
+  ; Set common attributes
+  For i.w = 0 To 1
+    \y = 256
+    \prevx = players(i)\x
+    \prevprevx = players(i)\x
+    \prevy = players(i)\y
+    \prevprevy = players(i)\y
+    \speed = 2
+    \crash = 0
+    \viewy = 192
+  Next i
+End Statement
+
+; *** Function to detect collision when facing up
+Function.b detectup{x.w, y.w}
+  SHARED players()
+  result.b = False
+  For i.w = y - 9 To y - 6
+    For j.w = x - 2 To x + 2
+      pix.w = Point(j, i)
+      If pix = players(0)\pen OR pix = players(1)\pen OR pix = 2 Then result = True
+    Next j
+  Next i
+  Function Return result
+End Function
+
+; *** Function to detect collision when facing down
+Function.b detectdown{x.w, y.w}
+  SHARED players()
+  result.b = False
+  For i.w = y + 6 To y + 9
+    For j.w = x - 2 To x + 2
+      pix.w = Point(j, i)
+      If pix = players(0)\pen OR pix = players(1)\pen OR pix = 2 Then result = True
+    Next j
+  Next i
+  Function Return result
+End Function
+
+; *** Function to detect collision when facing left
+Function.b detectleft{x.w, y.w}
+  SHARED players()
+  result.b = False
+  For i.w = x - 9 To x - 6
+    For j.w = y - 2 To y + 2
+      pix.w = Point(i, j)
+      If pix = players(0)\pen OR pix = players(1)\pen OR pix = 2 Then result = True
+    Next j
+  Next i
+  Function Return result
+End Function
+
+; *** Function to detect collision when facing right
+Function.b detectright{x.w, y.w}
+  SHARED players()
+  result.b = False
+  For i.w = x + 6 To x + 9
+    For j.w = y - 2 To y + 2
+      pix.w = Point(i, j)
+      If pix = players(0)\pen OR pix = players(1)\pen OR pix = 2 Then result = True
+    Next j
+  Next i
+  Function Return result
+End Function
+
+; *** Procedure to wait for either fire button to be pressed
+Statement waitforfire{}
+  SHARED quit.b
+  done.b = False
+  Repeat
+    VWait
+    If Joyb(0) OR Joyb(1) Then done = True
+    If RawStatus($40) Then done = True ; Also accept space
+    If RawStatus($45) ; Escape key pressed
+      done = True
+      quit = True
+    End If
+  Until done
+End Statement
+
+; Initialise the display
+resetgame{}
+
+#flgs =  $6 + $10 + $20 + $1000 ; 6 bitplanes (3 + 3), smooth scrolling, dual playfield, fetchmode 0
+InitCopList 0, 44, 125, #flgs, 8, 16, 0
+InitCopList 1, 175, 125, #flgs, 8, 16, 0
+
+AMIGA ; Only needed for debugger
+VWait 100
+
+BLITZ
+CreateDisplay 0, 1
+drawbitmaps{1}
+
+DisplayPalette 0, 0
+DisplayPalette 1, 0
+; $1C00 sets 2nd playfield palette to start at 16
+; $11 is the default for the 3rd parameter
+;DisplayControls 0, 0, 0, $11
+;DisplayControls 1, 0, 0, $11
+Buffer 0, 16384
+Buffer 1, 16384
+quit.b = False
+running.b = False
+waiting.b = True
+restart.b = False
+currentbitmap.w = 0
+waitcount.b = 0
+
+; Main loop
+Repeat
+  VWait
+  DisplayBitMap 0, currentbitmap, players(0)\viewx, players(0)\viewy, 2, players(0)\bgx, players(0)\bgy
+  DisplayBitMap 1, currentbitmap, players(1)\viewx, players(1)\viewy, 2, players(1)\bgx, players(1)\bgy
+
+  currentbitmap = 1 - currentbitmap
+  Use BitMap currentbitmap
+
+  UnBuffer currentbitmap
+
+  ; This loop calculates new player positions
+  For i = 0 To 1
+    If running
+      joy.b = 1 - i
+      Select Joyr(joy)
+        Case 0 ; Up
+          If \direction <> 2 Then \direction = 0
+        Case 2 ; Right
+          If \direction <> 3 Then \direction = 1
+        Case 4 ; Down
+          If \direction <> 0 Then \direction = 2
+        Case 6 ; Left
+          If \direction <> 1 Then \direction = 3
+      End Select
+
+      Select \direction
+        Case 0 ; Up
+          \y - \speed
+          If \y < 10 Then \y = 10
+        Case 1 ; Right
+          \x + \speed
+          If \x > 629 Then \x = 629
+        Case 2 ; Down
+          \y + \speed
+          If \y > 501 Then \y = 501
+        Case 3 ; Left
+          \x - \speed
+          If \x < 10 Then \x = 10
+      End Select
+    End If
+
+    ; Draw trail
+    Line \prevprevx, \prevprevy, \prevx, \prevy, \pen
+    Line \x, \y, \pen
+
+    ; Update BG
+    \viewx = \x - 160
+    If \viewx < 0 Then \viewx = 0
+    If \viewx > 319 Then \viewx = 319
+    \bgx = \viewx / 2
+
+    \viewy = \y - 64
+    If \viewy < 0 Then \viewy = 0
+    If \viewy > 387 Then \viewy = 387
+    \bgy = \viewy / 2
+
+    ; Update prev positions
+    \prevprevx = \prevx
+    \prevprevy = \prevy
+    \prevx = \x
+    \prevy = \y
+  Next i
+
+  ; Collision checking
+  For i = 0 To 1
+    coll.b = 0
+    hit.b = False
+    If running
+      Select \direction
+        Case 0 ; Up
+          If detectup{\x, \y}
+            coll = True
+          End If
+        Case 1 ; Right
+          If detectright{\x, \y}
+            coll = True
+          End If
+        Case 2 ; Down
+          If detectdown{\x, \y}
+            coll = True
+          End If
+        Case 3 ; Left
+          If detectleft{\x, \y}
+            coll = True
+          End If
+      End Select
+    End If
+
+    If coll
+      If \crash = 0 Then \crash = 1
+    End If
+  Next i
+
+  ; Handle player crash and animation
+  For i = 0 To 1
+    If \crash = 0 Then BBlit currentbitmap, i * 28 + Int(\animframe) + \direction * 7, \x, \y ; Do normal animation
+    If running
+      \animframe + \speed / 5
+      If \animframe >= 6 Then \animframe = 0
+    End If
+
+    If \crash ; Do crash animation
+      If \crash < 22
+        BBlit currentbitmap, i * 48 + 56 + (\crash) / 2 + \direction * 12, \x, \y
+      Else
+        BBlit currentbitmap, i * 48 + 56 + 11 + \direction * 12, \x, \y ; Repeat the final frame
+      End If
+
+      \crash + 1
+      If \crash > 50
+        restart = True
+      End If
+    End If
+  Next i
+
+  If players(0)\crash OR players(1)\crash
+    running = False
+  End If
+
+  If waiting
+    If waitcount < 3 Then waitcount + 1
+    If Joyb(0) OR Joyb(1)
+      If waitcount > 2
+        waitforfire{}
+        running = True
+        waiting = False
+      End If
+    End If
+  End If
+
+  ; Handle game restart
+  If restart
+    drawbitmaps{currentbitmap}
+    resetgame{}
+    FlushBuffer 0
+    FlushBuffer 1
+    restart = False
+    waiting = True
+    waitcount = 0
+    coll = 0
+  End If
+
+  If RawStatus($45) Then quit = True
+Until quit
+AMIGA
+End
+
