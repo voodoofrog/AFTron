@@ -276,7 +276,7 @@ End Statement
 ; Initialise the display
 resetgame{}
 
-#flgs =  $6 + $10 + $20 + $1000 ; 6 bitplanes (3 + 3), smooth scrolling, dual playfield, fetchmode 0
+#flgs =  $6 + $10 + $20 + $0000 ; 6 bitplanes (3 + 3), smooth scrolling, dual playfield, fetchmode 0
 InitCopList 0, 44, 125, #flgs, 8, 16, 0
 InitCopList 1, 175, 125, #flgs, 8, 16, 0
 
