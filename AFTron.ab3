@@ -133,7 +133,7 @@ Next i
 ; Crashing sprites
 For i.w = 0 To 1 ; Players 0 and 1
   For j.w = 0 To 11
-    GetaShape i * 48 + j + 56, j * 18, i * 21 + 40, 17, 20 ; Up facing
+    GetaShape i * 48 + j + 56, j * 17, i * 20 + 40, 17, 20 ; Up facing
     MidHandle i * 48 + j + 56
 
     CopyShape i * 48 + j + 56, i * 48 + j + 68 ; Right facing
